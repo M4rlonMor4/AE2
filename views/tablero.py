@@ -2,8 +2,8 @@
 import plotly.express as px
 import streamlit as st
 
-from src.analisis import completitud, descuento_promedio, equivalentes, filtrar, posicion_precio
-from src.ui import ARTICULO_POR_DEFECTO, PALETA, cop, datos
+from src.analisis import completitud, descuento_promedio, equivalentes, filtrar, posicion_precio, veredicto
+from src.ui import ARTICULO_POR_DEFECTO, PALETA, cop, datos, tarjeta_html
 
 df = datos()
 st.title("📊 Tablero de precios")
@@ -85,6 +85,9 @@ with tab2:
             st.markdown(f"**Frente a sus {pe['n']} equivalentes** ({config})")
             st.write(f"Mediana: {cop(pe['mediana'])}. {pe['mas_baratos']} cuestan menos, {pe['iguales']} igual "
                      f"(incluye el artículo) y {pe['mas_caros']} más.")
+        v = veredicto(art["precio"], eq)
+        st.markdown(f'<div class="veredicto {v["nivel"]}"><b>{v["etiqueta"]}</b><br>{v["detalle"]} '
+                    f'Frente a equipos con la misma RAM y disco.</div>', unsafe_allow_html=True)
         fig4 = px.histogram(eq, x="precio", nbins=12, title="Precios de los equivalentes",
                             labels={"precio": "Precio (COP)"}, color_discrete_sequence=[PALETA[1]])
         fig4.add_vline(x=art["precio"], line_color=PALETA[4], line_width=3, annotation_text="este artículo")
@@ -93,6 +96,26 @@ with tab2:
     st.link_button("Ver en Alkosto", art["url"], icon="🔗")
 
 with tab3:
-    st.dataframe(muestra, width="stretch", hide_index=True)
+    vista = st.radio("Vista", ["Tarjetas", "Tabla"], horizontal=True, label_visibility="collapsed")
+    if vista == "Tarjetas":
+        o1, o2 = st.columns([2, 1])
+        orden = o1.selectbox("Ordenar por", ["Precio (menor a mayor)", "Precio (mayor a menor)", "Mayor descuento"])
+        if len(muestra) > 6:
+            cuantos = o2.slider("Mostrar", 6, min(60, len(muestra)), min(12, len(muestra)))
+        else:
+            cuantos = len(muestra)
+        if orden.startswith("Precio (menor"):
+            ordenada = muestra.sort_values("precio")
+        elif orden.startswith("Precio (mayor"):
+            ordenada = muestra.sort_values("precio", ascending=False)
+        else:
+            ordenada = muestra.sort_values("descuento_pct", ascending=False)
+        filas = ordenada.head(cuantos).to_dict("records")
+        for i in range(0, len(filas), 3):
+            for col, fila in zip(st.columns(3), filas[i:i + 3]):
+                col.markdown(tarjeta_html(fila), unsafe_allow_html=True)
+                col.link_button("Ver en Alkosto", fila["url"], icon="🔗", width="stretch", key=f"ver_{i}_{fila['url']}")
+    else:
+        st.dataframe(muestra, width="stretch", hide_index=True)
     st.download_button("Descargar CSV filtrado", muestra.to_csv(index=False).encode("utf-8"),
                        "portatiles_filtrados.csv", "text/csv")
