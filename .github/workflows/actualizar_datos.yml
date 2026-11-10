@@ -1,0 +1,44 @@
+name: Actualizar datos (scraping con Selenium)
+
+# Ejecuta el scraper cada lunes (o manualmente) y abre un Pull Request con el CSV nuevo.
+# Al fusionar el PR en main, Streamlit Community Cloud redespliega la app automáticamente (CD).
+on:
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-scraper.txt
+      - run: pip install -r requirements-scraper.txt
+      - name: Extraer portátiles (Chrome ya viene instalado en ubuntu-latest)
+        run: python -m src.scraper --clics 3 --salida data/portatiles_alkosto.csv
+      - name: Abrir Pull Request si cambiaron los datos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet -- data/portatiles_alkosto.csv; then
+            echo "Sin cambios en los datos."
+            exit 0
+          fi
+          rama="datos/actualizacion-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$rama"
+          git add data/portatiles_alkosto.csv
+          git commit -m "data: actualiza precios de portátiles ($(date +%F))"
+          git push origin "$rama"
+          gh pr create --base main --head "$rama" \
+            --title "data: actualización semanal de precios ($(date +%F))" \
+            --body "Datos extraídos automáticamente con Selenium. Revisar que el CI pase antes de fusionar."
