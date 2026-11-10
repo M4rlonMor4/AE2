@@ -38,3 +38,11 @@ def test_tablero_con_filtro_imposible_muestra_aviso():
     at.sidebar.multiselect[1].select(vacia[1]).run()
     assert not at.exception
     assert any("Ningún portátil" in w.value for w in at.warning)
+
+
+def test_tablero_vista_tarjetas_y_tabla():
+    at = AppTest.from_file(TABLERO, default_timeout=60).run()
+    assert not at.exception
+    assert any('class="card"' in m.value for m in at.markdown)          # vista de tarjetas por defecto
+    at.radio[0].set_value("Tabla").run()
+    assert not at.exception and len(at.dataframe) == 1
