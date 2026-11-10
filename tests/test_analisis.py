@@ -9,6 +9,7 @@ from src.analisis import (
     equivalentes,
     filtrar,
     posicion_precio,
+    veredicto,
 )
 
 
@@ -82,3 +83,25 @@ def test_cargar_datos_limpia_y_convierte(tmp_path):
     r = cargar_datos(str(ruta))
     assert len(r) == 2                 # se descarta la fila sin precio
     assert r["gamer"].dtype == bool and bool(r.loc[0, "gamer"]) is True
+
+
+def _equivalentes(precios):
+    return pd.DataFrame({"precio": precios})
+
+
+def test_veredicto_buena_oferta():
+    v = veredicto(100, _equivalentes([100, 200, 300, 400, 500, 600]))
+    assert v["nivel"] == "buena"
+
+
+def test_veredicto_precio_normal():
+    v = veredicto(400, _equivalentes([100, 200, 300, 400, 500, 600]))
+    assert v["nivel"] == "normal" and "3 de 6" in v["detalle"]
+
+
+def test_veredicto_precio_alto():
+    assert veredicto(600, _equivalentes([100, 200, 300, 400, 500, 600]))["nivel"] == "caro"
+
+
+def test_veredicto_pocos_datos():
+    assert veredicto(100, _equivalentes([100, 200]))["nivel"] == "sin_datos"
