@@ -90,3 +90,24 @@ def completitud(df: pd.DataFrame, campos: list[str] | None = None) -> float:
 def equivalentes(df: pd.DataFrame, ram_gb: float, disco_gb: float) -> pd.DataFrame:
     """Portátiles con la misma RAM y capacidad de disco."""
     return df[(df["ram_gb"] == ram_gb) & (df["disco_gb"] == disco_gb)].reset_index(drop=True)
+
+
+def veredicto(precio: float, df_equivalentes: pd.DataFrame, minimo: int = 5) -> dict:
+    """Clasifica un precio frente a sus equivalentes: buena oferta, precio normal o caro.
+
+    Usa la fracción de equivalentes estrictamente más baratos: <= 1/3 buena oferta, <= 2/3 normal, resto caro.
+    Con menos de `minimo` equivalentes no hay datos suficientes para opinar.
+    """
+    pos = posicion_precio(df_equivalentes, precio)
+    if pos["n"] < minimo:
+        return {"nivel": "sin_datos", "etiqueta": "Pocos datos",
+                "detalle": f"Solo hay {pos['n']} equivalentes; se necesitan al menos {minimo}."}
+    fraccion = pos["mas_baratos"] / pos["n"]
+    if fraccion <= 1 / 3:
+        nivel, etiqueta = "buena", "Buena oferta"
+    elif fraccion <= 2 / 3:
+        nivel, etiqueta = "normal", "Precio normal"
+    else:
+        nivel, etiqueta = "caro", "Precio alto"
+    return {"nivel": nivel, "etiqueta": etiqueta,
+            "detalle": f"{pos['mas_baratos']} de {pos['n']} equivalentes cuestan menos ({fraccion:.0%})."}
